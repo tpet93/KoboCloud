@@ -19,6 +19,10 @@ then
     localFile="$localFile.epub"
 fi
 
+realfile=$localFile
+localFile="$localFile.tmp"
+tmpfile=$localFile
+
 #load config
 . $(dirname $0)/config.sh
 
@@ -26,6 +30,12 @@ curlCommand="$CURL"
 if [ ! -z "$user" ] && [ "$user" != "-" ]; then
     echo "User: $user"
     curlCommand="$curlCommand -u $user: "
+fi
+
+if [ -f "$realfile" ]; then
+    localSize=`stat -c%s "$realfile"`
+    echo "File exists: $localSize bytes"
+    exit 0
 fi
 
 echo "Download: "$curlCommand -k --silent -C - -L --create-dirs -o "$localFile" "$linkLine" -v
@@ -46,6 +56,7 @@ echo "  Status code: $statusCode"
 
 if echo "$statusCode" | grep -q "403"; then
     echo "Error: Forbidden"
+    rm "$tmpfile"
     exit 2
 fi
 if echo "$statusCode" | grep -q "50.*"; then
@@ -66,6 +77,7 @@ if echo "$statusCode" | grep -q "50.*"; then
             $0 NORETRY "$@"
         fi
     else
+        rm "$tmpfile"
         exit 3
     fi
 fi
@@ -74,5 +86,10 @@ if grep -q "^REMOVE_DELETED" $UserConfig; then
 	echo "$localFile" >> "$Lib/filesList.log"
 	echo "Appended $localFile to filesList"
 fi
+
+if echo "$statusCode" | grep -q "200"; then
+    mv $tmpfile $realfile
+fi
+
 echo "getRemoteFile ended"
 
